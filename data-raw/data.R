@@ -76,17 +76,20 @@ travel_times <- service_counts %>%
   mutate(from_stop_id = lag(stop_id),
          travel_time = arrival_time - lag(departure_time)) %>%
   filter(!is.na(from_stop_id)) %>%  # Remove first stop
-  group_by(from_stop_id, to_stop_id = stop_id, route_id) %>%
+  group_by(from_stop_id, to_stop_id = stop_id, route_id, direction_id) %>%
   summarise(travel_time = min(travel_time),
             n_trips = sum(n_occurrences)) %>%
   ungroup()
 
-# Identify unique stops
+# Identify observed stops
+observed_stops <- service_counts %>%
+  inner_join(trips_raw) %>%
+  left_join(stop_times_raw) %>%
+  {unique(gsub('(N|S)$', '', .$stop_id))}
 stops <- stops_raw %>%
   filter(location_type == 1) %>%
   select(stop_id, name = stop_name, lat = stop_lat, lon = stop_lon) %>%
-  # Remove stops with no observations in travel time data
-  filter(stop_id %in% c(travel_times$from_stop_id, travel_times$to_stop_id))
+  filter(stop_id %in% observed_stops)
 
 # Identify stops that appear consecutively on any route and any direction
 consecutive_stops <- tibble(
@@ -146,11 +149,18 @@ nodes <- disambiguated_stops %>%
 edges <- travel_times %>%
   left_join(disambiguated_stops, by = c('from_stop_id' = 'stop_id')) %>%
   left_join(disambiguated_stops, by = c('to_stop_id' = 'stop_id')) %>%
-  group_by(source = id.x, target = id.y, route = route_id) %>%
+  group_by(source = id.x, target = id.y, route = route_id, direction_id) %>%
   summarise(travel_time = min(travel_time),
             n_trips = sum(n_trips)) %>%
   ungroup() %>%
-  arrange(source, target, route)
+  # Remove directed route-specific "shortcuts"
+  left_join(nodes, by = c('source' = 'id')) %>%
+  left_join(nodes, by = c('target' = 'id')) %>%
+  group_by(source, route, direction_id) %>%
+  slice(which.min((lat.x - lat.y) ^ 2 + (lon.x - lon.y) ^ 2)) %>%
+  ungroup() %>%
+  select(-direction_id, -ends_with('x'), -ends_with('y')) %>%
+  arrange(source, target, route) 
 
 # Export data
 write_csv(edges, 'data-raw/edges.csv')
