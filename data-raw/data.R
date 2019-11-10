@@ -72,21 +72,24 @@ disambiguated_stops <- stations_raw %>%
   `colnames<-`(gsub(' ', '_', tolower(colnames(.)))) %>%
   select(gtfs_stop_id, station_id, stop_name, borough, complex_id, complex_name) %>%
   mutate(complex_name = ifelse(!is.na(complex_name), complex_name, stop_name)) %>%
-  select(old_stop_id = gtfs_stop_id, stop_id = complex_id, stop_name = complex_name) %>%
+  select(old_stop_id = gtfs_stop_id, stop_id = complex_id, stop_name = complex_name, borough) %>%
   arrange(old_stop_id) %>%
   left_join(stops, by = c('old_stop_id' = 'stop_id')) %>%
   distinct() %>%
   group_by(stop_id) %>%
-  mutate(min_old_stop_id = min(old_stop_id),  # Make IDs match previous method
-         stop_lat = mean(stop_lat),
+  mutate(stop_lat = mean(stop_lat),
          stop_lon = mean(stop_lon)) %>%
   ungroup() %>%
-  select(old_stop_id, stop_id = min_old_stop_id, stop_name = stop_name.x, stop_lat, stop_lon) %>%
-  mutate(stop_id = as.numeric(as.factor(stop_id)))
+  mutate(stop_borough = case_when(borough == 'Bx' ~ 'Bronx',
+                                  borough == 'Bk' ~ 'Brooklyn',
+                                  borough == 'M' ~ 'Manhattan',
+                                  borough == 'SI' ~ 'Staten Island',
+                                  borough == 'Q' ~ 'Queens')) %>%
+  select(old_stop_id, stop_id, stop_name = stop_name.x, stop_lat, stop_lon, stop_borough)
 
 # Identify nodes
 nodes <- disambiguated_stops %>%
-  distinct(stop_id, stop_name, stop_lat, stop_lon) %>%
+  distinct(stop_id, stop_name, stop_lat, stop_lon, stop_borough) %>%
   arrange(stop_id) %>%
   mutate_at(c('stop_lat', 'stop_lon'), round, 6)  # Preserve original precision
 
