@@ -1,6 +1,6 @@
 # DATA.R
 #
-# This script generates data/edges.rda, data/nodes.rda and data/routes.rda.
+# This script generates data/routes.rda, data/stops.rda and data/travel_times.rda.
 #
 # Ben Davies
 # November 2019
@@ -46,7 +46,7 @@ hms2sec <- function(x) {
 }
 
 # Compute route-specific minimum observed travel times between consecutive stops
-travel_times <- trips_raw %>%
+observed_travel_times <- trips_raw %>%
   left_join(stop_times_raw) %>%
   mutate(stop_id = gsub('(N|S)$', '', stop_id)) %>%  # Ignore orientation
   mutate_at(c('direction_id', 'stop_sequence'), as.numeric) %>%
@@ -61,10 +61,10 @@ travel_times <- trips_raw %>%
   ungroup()
 
 # Identify observed stops
-stops <- stops_raw %>%
+observed_stops <- stops_raw %>%
   filter(location_type == 1) %>%
   select(stop_id, stop_name, stop_lat, stop_lon) %>%
-  filter(stop_id %in% c(travel_times$from_stop_id, travel_times$to_stop_id))
+  filter(stop_id %in% c(observed_travel_times$from_stop_id, observed_travel_times$to_stop_id))
 
 # Disambiguate stops
 disambiguated_stops <- stations_raw %>%
@@ -74,7 +74,7 @@ disambiguated_stops <- stations_raw %>%
   mutate(complex_name = ifelse(!is.na(complex_name), complex_name, stop_name)) %>%
   select(old_stop_id = gtfs_stop_id, stop_id = complex_id, stop_name = complex_name, borough) %>%
   arrange(old_stop_id) %>%
-  left_join(stops, by = c('old_stop_id' = 'stop_id')) %>%
+  left_join(observed_stops, by = c('old_stop_id' = 'stop_id')) %>%
   distinct() %>%
   group_by(stop_id) %>%
   mutate(stop_lat = mean(stop_lat),
@@ -87,22 +87,22 @@ disambiguated_stops <- stations_raw %>%
                                   borough == 'Q' ~ 'Queens')) %>%
   select(old_stop_id, stop_id, stop_name = stop_name.x, stop_lat, stop_lon, stop_borough)
 
-# Identify nodes
-nodes <- disambiguated_stops %>%
+# Prepare stops for export
+stops <- disambiguated_stops %>%
   distinct(stop_id, stop_name, stop_lat, stop_lon, stop_borough) %>%
   arrange(stop_id) %>%
   mutate_at(c('stop_lat', 'stop_lon'), round, 6)  # Preserve original precision
 
-# Identify edges
-edges <- travel_times %>%
+# Prepare travel times for export
+travel_times <- observed_travel_times %>%
   left_join(disambiguated_stops, by = c('from_stop_id' = 'old_stop_id')) %>%
   left_join(disambiguated_stops, by = c('to_stop_id' = 'old_stop_id')) %>%
   group_by(source = stop_id.x, target = stop_id.y, route_id, direction_id) %>%
   summarise(travel_time = min(travel_time)) %>%
   ungroup() %>%
   # Remove directed route-specific "shortcuts"
-  left_join(nodes, by = c('source' = 'stop_id')) %>%
-  left_join(nodes, by = c('target' = 'stop_id')) %>%
+  left_join(stops, by = c('source' = 'stop_id')) %>%
+  left_join(stops, by = c('target' = 'stop_id')) %>%
   group_by(source, route_id, direction_id) %>%
   slice(which.min((stop_lat.x - stop_lat.y) ^ 2 + (stop_lon.x - stop_lon.y) ^ 2)) %>%
   ungroup() %>%
@@ -110,12 +110,12 @@ edges <- travel_times %>%
   arrange(source, target, route_id) 
 
 # Export data
-write_csv(edges, 'data-raw/travel_times.csv')
-write_csv(mutate_at(nodes, c('stop_lat', 'stop_lon'), as.character), 'data-raw/stops.csv')
 write_csv(routes, 'data-raw/routes.csv')
-save(edges, file = 'data/travel_times.rda')
-save(nodes, file = 'data/stops.rda')
+write_csv(mutate_at(stops, c('stop_lat', 'stop_lon'), as.character), 'data-raw/stops.csv')
+write_csv(travel_times, 'data-raw/travel_times.csv')
 save(routes, file = 'data/routes.rda')
+save(stops, file = 'data/stops.rda')
+save(travel_times, file = 'data/travel_times.rda')
 
 # Save session info
 options(width = 80)
