@@ -28,7 +28,8 @@ routes <- trips_raw %>%
   filter(stop_sequence == '1') %>%
   count(route_id) %>%
   left_join(routes_raw) %>%
-  select(route_id, route_name = route_long_name, route_color)
+  select(route_id, route_name = route_long_name, route_color) %>%
+  mutate(route_color = ifelse(!is.na(route_color), paste0('#', route_color), NA))
 
 # Define function for converting HH:MM:SS strings to second counts
 hms2sec <- function(x) {
