@@ -10,14 +10,11 @@ library(dplyr)
 library(readr)
 library(stringdist)
 library(stringr)
-library(tidyr)
 
 # Import Google Transit data
 import_data <- function(x, ...) {
   readr::read_csv(paste0('data-raw/transit/', x, '.txt'), ...)
 }
-calendar_raw <- import_data('calendar')
-calendar_dates_raw <- import_data('calendar_dates')
 routes_raw <- import_data('routes')
 shapes_raw <- import_data('shapes')
 stops_raw <- import_data('stops')
@@ -25,29 +22,8 @@ stop_times_raw <- import_data('stop_times', col_types = cols(.default = 'c'))
 transfers_raw <- import_data('transfers')
 trips_raw <- import_data('trips', col_types = cols(.default = 'c'))
 
-# Count scheduled service occurrences during first week of November 2019
-service_dates <- vector('list', nrow(calendar_raw))
-for (i in seq_len(nrow(calendar_raw))) {
-  service_dates[[i]] <- tibble(
-    date = seq(calendar_raw$start_date[i], calendar_raw$end_date[i])
-  ) %>%
-    mutate(service_id = calendar_raw$service_id[i])
-}
-service_counts <- service_dates %>%
-  bind_rows() %>%
-  mutate(date = as.Date(as.character(date), format = '%Y%m%d')) %>%
-  left_join(calendar_raw) %>%
-  gather(key, value, -date, -service_id, -start_date, -end_date) %>%
-  filter(key == tolower(weekdays(date)) & value == 1) %>%
-  select(service_id, date) %>%
-  mutate(date = as.numeric(gsub('-', '', date))) %>%
-  bind_rows(select(calendar_dates_raw, service_id, date)) %>%
-  filter(date >= 20191101 & date <= 20191107) %>%
-  count(service_id, name = 'n_occurrences')
-
-# Identify routes with at least one trip during first week of November 2019
-routes <- service_counts %>%
-  inner_join(trips_raw) %>%
+# Identify routes
+routes <- trips_raw %>%
   left_join(stop_times_raw) %>%
   filter(stop_sequence == '1') %>%
   count(route_id) %>%
@@ -65,8 +41,7 @@ hms2sec <- function(x) {
 }
 
 # Compute route-specific minimum observed travel times between consecutive stops
-travel_times <- service_counts %>%
-  inner_join(trips_raw) %>%
+travel_times <- trips_raw %>%
   left_join(stop_times_raw) %>%
   mutate(stop_id = gsub('(N|S)$', '', stop_id)) %>%  # Ignore orientation
   mutate_at(c('direction_id', 'stop_sequence'), as.numeric) %>%
@@ -81,14 +56,10 @@ travel_times <- service_counts %>%
   ungroup()
 
 # Identify observed stops
-observed_stops <- service_counts %>%
-  inner_join(trips_raw) %>%
-  left_join(stop_times_raw) %>%
-  {unique(gsub('(N|S)$', '', .$stop_id))}
 stops <- stops_raw %>%
   filter(location_type == 1) %>%
   select(stop_id, name = stop_name, lat = stop_lat, lon = stop_lon) %>%
-  filter(stop_id %in% observed_stops)
+  filter(stop_id %in% c(travel_times$from_stop_id, travel_times$to_stop_id))
 
 # Identify stops that appear consecutively on any route and any direction
 consecutive_stops <- tibble(
