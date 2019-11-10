@@ -28,7 +28,7 @@ routes <- trips_raw %>%
   filter(stop_sequence == '1') %>%
   count(route_id) %>%
   left_join(routes_raw) %>%
-  select(route = route_id, name = route_long_name, color = route_color)
+  select(route_id, route_name = route_long_name, route_color)
 
 # Define function for converting HH:MM:SS strings to second counts
 hms2sec <- function(x) {
@@ -58,7 +58,7 @@ travel_times <- trips_raw %>%
 # Identify observed stops
 stops <- stops_raw %>%
   filter(location_type == 1) %>%
-  select(stop_id, name = stop_name, lat = stop_lat, lon = stop_lon) %>%
+  select(stop_id, stop_name, stop_lat, stop_lon) %>%
   filter(stop_id %in% c(travel_times$from_stop_id, travel_times$to_stop_id))
 
 # Identify stops that appear consecutively on any route and any direction
@@ -95,48 +95,48 @@ disambiguated_stops <- tibble(
   # Keep pairs that share an in-system transfer or close proximity
   left_join(mutate(transfers, has_transfer = T)) %>%
   mutate(has_transfer = !is.na(has_transfer),
-         euclidean_dist = sqrt((lat.x - lat.y) ^ 2 + (lon.x - lon.y) ^ 2)) %>%
+         euclidean_dist = sqrt((stop_lat.x - stop_lat.y) ^ 2 + (stop_lon.x - stop_lon.y) ^ 2)) %>%
   filter(has_transfer | euclidean_dist < 0.001) %>%
   # Assign unique ID and name to each set of disambiguated stops
-  distinct(stop_id.x, stop_id.y, name.y, lat.y, lon.y) %>%
-  group_by(stop_id = stop_id.x) %>%
-  summarise(id = min(stop_id.y),
-            name = paste(sort(unique(name.y)), collapse = '&'),
-            lat = mean(lat.y),  # Centroid
-            lon = mean(lon.y)) %>%
+  distinct(stop_id.x, stop_id.y, stop_name.y, stop_lat.y, stop_lon.y) %>%
+  group_by(old_stop_id = stop_id.x) %>%
+  summarise(stop_id = min(stop_id.y),
+            stop_name = paste(sort(unique(stop_name.y)), collapse = '&'),
+            stop_lat = mean(stop_lat.y),  # Centroid
+            stop_lon = mean(stop_lon.y)) %>%
   ungroup() %>%
-  mutate(id = as.numeric(as.factor(id)),
-         name = sub('&([^&]*)$', ' and \\1', name),
-         name = gsub('&', ', ', name)) %>%
-  arrange(id, stop_id)
+  mutate(stop_id = as.numeric(as.factor(stop_id)),
+         stop_name = sub('&([^&]*)$', ' and \\1', stop_name),
+         stop_name = gsub('&', ', ', stop_name))
 
 # Identify nodes
 nodes <- disambiguated_stops %>%
-  distinct(id, name, lat, lon) %>%
-  mutate_at(c('lat', 'lon'), round, 6)  # Preserve original precision
+  distinct(stop_id, stop_name, stop_lat, stop_lon) %>%
+  arrange(stop_id) %>%
+  mutate_at(c('stop_lat', 'stop_lon'), round, 6)  # Preserve original precision
 
 # Identify edges
 edges <- travel_times %>%
-  left_join(disambiguated_stops, by = c('from_stop_id' = 'stop_id')) %>%
-  left_join(disambiguated_stops, by = c('to_stop_id' = 'stop_id')) %>%
-  group_by(source = id.x, target = id.y, route = route_id, direction_id) %>%
+  left_join(disambiguated_stops, by = c('from_stop_id' = 'old_stop_id')) %>%
+  left_join(disambiguated_stops, by = c('to_stop_id' = 'old_stop_id')) %>%
+  group_by(source = stop_id.x, target = stop_id.y, route_id, direction_id) %>%
   summarise(travel_time = min(travel_time)) %>%
   ungroup() %>%
   # Remove directed route-specific "shortcuts"
-  left_join(nodes, by = c('source' = 'id')) %>%
-  left_join(nodes, by = c('target' = 'id')) %>%
-  group_by(source, route, direction_id) %>%
-  slice(which.min((lat.x - lat.y) ^ 2 + (lon.x - lon.y) ^ 2)) %>%
+  left_join(nodes, by = c('source' = 'stop_id')) %>%
+  left_join(nodes, by = c('target' = 'stop_id')) %>%
+  group_by(source, route_id, direction_id) %>%
+  slice(which.min((stop_lat.x - stop_lat.y) ^ 2 + (stop_lon.x - stop_lon.y) ^ 2)) %>%
   ungroup() %>%
   select(-direction_id, -ends_with('x'), -ends_with('y')) %>%
-  arrange(source, target, route) 
+  arrange(source, target, route_id) 
 
 # Export data
-write_csv(edges, 'data-raw/edges.csv')
-write_csv(mutate_at(nodes, c('lat', 'lon'), as.character), 'data-raw/nodes.csv')
+write_csv(edges, 'data-raw/travel_times.csv')
+write_csv(mutate_at(nodes, c('stop_lat', 'stop_lon'), as.character), 'data-raw/stops.csv')
 write_csv(routes, 'data-raw/routes.csv')
-save(edges, file = 'data/edges.rda')
-save(nodes, file = 'data/nodes.rda')
+save(edges, file = 'data/travel_times.rda')
+save(nodes, file = 'data/stops.rda')
 save(routes, file = 'data/routes.rda')
 
 # Save session info

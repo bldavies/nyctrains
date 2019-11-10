@@ -1,4 +1,4 @@
-route,name,color
+route_id,route_name,route_color
 1,Broadway - 7 Avenue Local,EE352E
 2,7 Avenue Express,EE352E
 3,7 Avenue Express,EE352E

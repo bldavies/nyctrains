@@ -1,4 +1,4 @@
-source,target,route,travel_time
+source,target,route_id,travel_time
 1,2,1,90
 2,1,1,90
 2,3,1,90
