@@ -1,31 +1,31 @@
-route,name,color,n_trips
-1,Broadway - 7 Avenue Local,EE352E,2894
-2,7 Avenue Express,EE352E,2144
-3,7 Avenue Express,EE352E,1948
-4,Lexington Avenue Express,00933C,2384
-5,Lexington Avenue Express,00933C,1963
-5X,Lexington Avenue Express,00933C,100
-6,Lexington Avenue Local,00933C,2759
-6X,Pelham Bay Park Express,00A65C,565
-7,Flushing Local,B933AD,3552
-7X,Flushing Express,B933AD,540
-A,8 Avenue Express,2850AD,2476
-B,6 Avenue Express,FF6319,1030
-C,8 Avenue Local,2850AD,1346
-D,6 Avenue Express,FF6319,1832
-E,8 Avenue Local,2850AD,2470
-F,Queens Blvd Express/ 6 Av Local,FF6319,2358
-FS,Franklin Avenue Shuttle,NA,1604
-FX,Brooklyn F Express,FF6319,20
-G,Brooklyn-Queens Crosstown,6CBE45,1970
-GS,42 St Shuttle,6D6E71,3732
-H,Rockaway Park Shuttle,NA,1153
-J,Nassau St Local,996633,1783
-L,14 St-Canarsie Local,A7A9AC,3044
-M,Queens Blvd Local/6 Av Local,FF6319,1914
-N,Broadway Local,FCCC0A,1817
-Q,Broadway Express,FCCC0A,2149
-R,Broadway Local,FCCC0A,1857
-SI,Staten Island Railway,NA,937
-W,Broadway Local,FCCC0A,975
-Z,Nassau St Express,996633,60
+route,name,color
+1,Broadway - 7 Avenue Local,EE352E
+2,7 Avenue Express,EE352E
+3,7 Avenue Express,EE352E
+4,Lexington Avenue Express,00933C
+5,Lexington Avenue Express,00933C
+5X,Lexington Avenue Express,00933C
+6,Lexington Avenue Local,00933C
+6X,Pelham Bay Park Express,00A65C
+7,Flushing Local,B933AD
+7X,Flushing Express,B933AD
+A,8 Avenue Express,2850AD
+B,6 Avenue Express,FF6319
+C,8 Avenue Local,2850AD
+D,6 Avenue Express,FF6319
+E,8 Avenue Local,2850AD
+F,Queens Blvd Express/ 6 Av Local,FF6319
+FS,Franklin Avenue Shuttle,NA
+FX,Brooklyn F Express,FF6319
+G,Brooklyn-Queens Crosstown,6CBE45
+GS,42 St Shuttle,6D6E71
+H,Rockaway Park Shuttle,NA
+J,Nassau St Local,996633
+L,14 St-Canarsie Local,A7A9AC
+M,Queens Blvd Local/6 Av Local,FF6319
+N,Broadway Local,FCCC0A
+Q,Broadway Express,FCCC0A
+R,Broadway Local,FCCC0A
+SI,Staten Island Railway,NA
+W,Broadway Local,FCCC0A
+Z,Nassau St Express,996633

@@ -45,14 +45,14 @@ service_counts <- service_dates %>%
   filter(date >= 20191101 & date <= 20191107) %>%
   count(service_id, name = 'n_occurrences')
 
-# Count observations by route
+# Identify routes with at least one trip during first week of November 2019
 routes <- service_counts %>%
   inner_join(trips_raw) %>%
   left_join(stop_times_raw) %>%
   filter(stop_sequence == '1') %>%
-  count(route_id, name = 'n_trips', wt = n_occurrences) %>%
+  count(route_id) %>%
   left_join(routes_raw) %>%
-  select(route = route_id, name = route_long_name, color = route_color, n_trips)
+  select(route = route_id, name = route_long_name, color = route_color)
 
 # Define function for converting HH:MM:SS strings to second counts
 hms2sec <- function(x) {
@@ -77,8 +77,7 @@ travel_times <- service_counts %>%
          travel_time = arrival_time - lag(departure_time)) %>%
   filter(!is.na(from_stop_id)) %>%  # Remove first stop
   group_by(from_stop_id, to_stop_id = stop_id, route_id, direction_id) %>%
-  summarise(travel_time = min(travel_time),
-            n_trips = sum(n_occurrences)) %>%
+  summarise(travel_time = min(travel_time)) %>%
   ungroup()
 
 # Identify observed stops
@@ -150,8 +149,7 @@ edges <- travel_times %>%
   left_join(disambiguated_stops, by = c('from_stop_id' = 'stop_id')) %>%
   left_join(disambiguated_stops, by = c('to_stop_id' = 'stop_id')) %>%
   group_by(source = id.x, target = id.y, route = route_id, direction_id) %>%
-  summarise(travel_time = min(travel_time),
-            n_trips = sum(n_trips)) %>%
+  summarise(travel_time = min(travel_time)) %>%
   ungroup() %>%
   # Remove directed route-specific "shortcuts"
   left_join(nodes, by = c('source' = 'id')) %>%
