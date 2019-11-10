@@ -8,7 +8,6 @@
 # Load packages
 library(dplyr)
 library(readr)
-library(stringdist)
 library(stringr)
 
 # Import Google Transit data
@@ -16,11 +15,16 @@ import_data <- function(x, ...) {
   readr::read_csv(paste0('data-raw/transit/', x, '.txt'), ...)
 }
 routes_raw <- import_data('routes')
-shapes_raw <- import_data('shapes')
 stops_raw <- import_data('stops')
 stop_times_raw <- import_data('stop_times', col_types = cols(.default = 'c'))
-transfers_raw <- import_data('transfers')
 trips_raw <- import_data('trips', col_types = cols(.default = 'c'))
+
+# Download station and complex lists
+download_data <- function(x) {
+  readr::read_csv(paste0('http://web.mta.info/developers/data/nyct/subway/', x, '.csv'))
+}
+stations_raw <- download_data('Stations')
+complexes_raw <- download_data('StationComplexes')
 
 # Identify routes
 routes <- trips_raw %>%
@@ -62,53 +66,23 @@ stops <- stops_raw %>%
   select(stop_id, stop_name, stop_lat, stop_lon) %>%
   filter(stop_id %in% c(travel_times$from_stop_id, travel_times$to_stop_id))
 
-# Identify stops that appear consecutively on any route and any direction
-consecutive_stops <- tibble(
-  stop_id.x = c(travel_times$from_stop_id, travel_times$to_stop_id),
-  stop_id.y = c(travel_times$to_stop_id, travel_times$from_stop_id)
-) %>%
-  distinct(stop_id.x, stop_id.y)
-
-# Clean transfer data
-transfers <- transfers_raw %>%
-  select(stop_id.x = from_stop_id, stop_id.y = to_stop_id) %>%
-  # Add missing transfer between South Ferry and Whitehall St
-  bind_rows(
-    tribble(
-      ~stop_id.x, ~stop_id.y,
-      '142', 'R27',
-      'R27', '142'
-    )
-  ) %>%
-  # Remove out-of-system transfer between Lex. Av/59 St and Lex. Av/63 St
-  filter(!(stop_id.x %in% c('629', 'R11') & stop_id.y == 'B08')) %>%
-  filter(!(stop_id.x == 'B08' & stop_id.y %in% c('629', 'R11')))
-
 # Disambiguate stops
-disambiguated_stops <- tibble(
-  stop_id.x = rep(stops$stop_id, nrow(stops)),
-  stop_id.y = rep(stops$stop_id, each = nrow(stops))
-) %>%
-  left_join(stops, by = c('stop_id.x' = 'stop_id')) %>%
-  left_join(stops, by = c('stop_id.y' = 'stop_id')) %>%
-  # Remove Aqueduct Racetrack and Aqaeduct - N Conduit Av from consideration
-  anti_join(consecutive_stops) %>%
-  # Keep pairs that share an in-system transfer or close proximity
-  left_join(mutate(transfers, has_transfer = T)) %>%
-  mutate(has_transfer = !is.na(has_transfer),
-         euclidean_dist = sqrt((stop_lat.x - stop_lat.y) ^ 2 + (stop_lon.x - stop_lon.y) ^ 2)) %>%
-  filter(has_transfer | euclidean_dist < 0.001) %>%
-  # Assign unique ID and name to each set of disambiguated stops
-  distinct(stop_id.x, stop_id.y, stop_name.y, stop_lat.y, stop_lon.y) %>%
-  group_by(old_stop_id = stop_id.x) %>%
-  summarise(stop_id = min(stop_id.y),
-            stop_name = paste(sort(unique(stop_name.y)), collapse = '&'),
-            stop_lat = mean(stop_lat.y),  # Centroid
-            stop_lon = mean(stop_lon.y)) %>%
+disambiguated_stops <- stations_raw %>%
+  left_join(complexes_raw) %>%
+  `colnames<-`(gsub(' ', '_', tolower(colnames(.)))) %>%
+  select(gtfs_stop_id, station_id, stop_name, borough, complex_id, complex_name) %>%
+  mutate(complex_name = ifelse(!is.na(complex_name), complex_name, stop_name)) %>%
+  select(old_stop_id = gtfs_stop_id, stop_id = complex_id, stop_name = complex_name) %>%
+  arrange(old_stop_id) %>%
+  left_join(stops, by = c('old_stop_id' = 'stop_id')) %>%
+  distinct() %>%
+  group_by(stop_id) %>%
+  mutate(min_old_stop_id = min(old_stop_id),  # Make IDs match previous method
+         stop_lat = mean(stop_lat),
+         stop_lon = mean(stop_lon)) %>%
   ungroup() %>%
-  mutate(stop_id = as.numeric(as.factor(stop_id)),
-         stop_name = sub('&([^&]*)$', ' and \\1', stop_name),
-         stop_name = gsub('&', ', ', stop_name))
+  select(old_stop_id, stop_id = min_old_stop_id, stop_name = stop_name.x, stop_lat, stop_lon) %>%
+  mutate(stop_id = as.numeric(as.factor(stop_id)))
 
 # Identify nodes
 nodes <- disambiguated_stops %>%
