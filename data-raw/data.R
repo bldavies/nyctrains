@@ -113,9 +113,9 @@ travel_times <- observed_travel_times %>%
 write_csv(routes, 'data-raw/routes.csv')
 write_csv(mutate_at(stops, c('stop_lat', 'stop_lon'), as.character), 'data-raw/stops.csv')
 write_csv(travel_times, 'data-raw/travel_times.csv')
-save(routes, file = 'data/routes.rda')
-save(stops, file = 'data/stops.rda')
-save(travel_times, file = 'data/travel_times.rda')
+save(routes, file = 'data/routes.rda', version = 2)
+save(stops, file = 'data/stops.rda', version = 2)
+save(travel_times, file = 'data/travel_times.rda', version = 2)
 
 # Save session info
 options(width = 80)
