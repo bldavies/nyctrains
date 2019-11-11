@@ -9,6 +9,8 @@ Authors@R:
          role = c("aut", "cre"),
          comment = c(ORCID = "0000-0002-1749-4567"))
 Description: Travel times between NYC subway stops, and metadata on stops and routes.
+URL: http://github.com/bldavies/nyctrains
+BugReports: http://github.com/bldavies/nyctrains/issues
 Depends: R (>= 2.10)
 License: CC0
 Encoding: UTF-8
