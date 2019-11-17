@@ -1,6 +1,6 @@
 Package: nyctrains
 Type: Package
-Title: NYC Subway Network
+Title: NYC Subway Data
 Version: 0.1.0
 Authors@R:
   person(given = "Benjamin",
@@ -8,7 +8,9 @@ Authors@R:
          email = "ben.davies@motu.org.nz",
          role = c("aut", "cre"),
          comment = c(ORCID = "0000-0002-1749-4567"))
-Description: Travel times between NYC subway stops, and metadata on stops and routes.
+Description: This package contains data on the New York City subway network.
+    These data include route names and colors, stop names and locations, and
+    route-specific minimum travel times between consecutive stops.
 URL: http://github.com/bldavies/nyctrains
 BugReports: http://github.com/bldavies/nyctrains/issues
 Depends: R (>= 2.10)
